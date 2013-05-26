@@ -1,0 +1,36 @@
+#! /bin/bash
+
+IMAGEMAGICK_V=6.8.5-8
+
+CURRENT_DIR=${PWD}
+
+while test $# -gt 0; do
+  case "$1" in
+    -l|--local)
+      shift
+      LOCAL=true
+      INSTALL_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $LOCAL ]]; then
+  mkdir $CURRENT_DIR/builddir
+  BUILDDIR=$CURRENT_DIR/builddir
+  PACKAGEDIR=$INSTALL_DIR
+  CURLDIR=$BUILDDIR
+else
+  BUILDDIR=/tmp/build
+  PACKAGEDIR=/tmp/package
+  CURLDIR=$CURRENT_DIR
+fi
+
+curl http://www.imagemagick.org/download/ImageMagick-$IMAGEMAGICK_V.tar.gz -o- | tar -xz -C $CURLDIR -f -
+cd ImageMagick-$IMAGEMAGICK_V
+./configure --prefix=$PACKAGEDIR
+make
+make install

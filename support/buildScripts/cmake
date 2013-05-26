@@ -1,0 +1,53 @@
+#! /bin/bash
+
+CMAKE_V_MAJOR=2.8
+CMAKE_V_MINOR=11
+
+CURRENT_DIR=${PWD}
+
+while test $# -gt 0; do
+  case "$1" in
+    -l|--local)
+      shift
+      LOCAL=true
+      shift
+      ;;
+    -s|--buildtool)
+      shift
+      BUILDTOOL=true
+      shift
+      ;;
+  esac
+done
+
+if [[ $LOCAL ]]; then
+  mkdir $CURRENT_DIR/builddir
+  BUILDDIR=$CURRENT_DIR/builddir
+  PACKAGEDIR=$CURRENT_DIR/builddir
+  cd $CURRENT_DIR/builddir
+  PREFIX=$BUILDDIR/cmake
+else
+  BUILDDIR=/tmp/build
+  PACKAGEDIR=/tmp/package
+  if ! [[ $BUILDTOOL ]]; then
+    PREFIX=$BUILDDIR
+  else
+    PREFIX=$CURRENT_DIR/cmake
+  fi
+fi
+
+if [[ $LOCAL ]]; then
+  CURLDIR=$BUILDDIR
+else
+  CURLDIR=$CURRENT_DIR
+fi
+
+curl http://www.cmake.org/files/v$CMAKE_V_MAJOR/cmake-$CMAKE_V_MAJOR.$CMAKE_V_MINOR.tar.gz -o - | tar -xz -C $CURLDIR -f -
+cd $CURLDIR/cmake-$CMAKE_V_MAJOR.$CMAKE_V_MINOR
+./configure --prefix=$PREFIX --no-system-libs
+make
+make install
+
+if ! [ $BUILDTOOL ]; then
+  cp -r $BUILDDIR $PACKAGEDIR
+fi

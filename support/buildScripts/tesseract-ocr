@@ -1,0 +1,52 @@
+#! /bin/bash
+
+TESSERACT_V=3.02.02
+LEPTONICA_V=1.69
+
+CURRENT_DIR=${PWD}
+
+while test $# -gt 0; do
+  case "$1" in
+    -l|--local)
+      shift
+      LOCAL=true
+      INSTALL_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $LOCAL ]]; then
+  mkdir $CURRENT_DIR/builddir
+  BUILDDIR=$CURRENT_DIR/builddir
+  PACKAGEDIR=$INSTALL_DIR
+  CURLDIR=$BUILDDIR
+else
+  BUILDDIR=/tmp/build
+  PACKAGEDIR=/tmp/package
+  CURLDIR=$CURRENT_DIR
+fi
+
+curl http://www.leptonica.org/source/leptonica-$LEPTONICA_V.tar.gz -o - | tar -xz -C $CURLDIR -f -
+curl https://tesseract-ocr.googlecode.com/files/tesseract-ocr-$TESSERACT_V.tar.gz -o- | tar -xz -C $CURLDIR -f -
+cd $CURLDIR/leptonica-$LEPTONICA_V
+./configure --prefix=$BUILDDIR/leptonica-$LEPTONICA_V --exec-prefix=$BUILDDIR/leptonica-$LEPTONICA_V
+make
+make install
+
+cd $CURLDIR/tesseract-ocr
+./autogen.sh
+export LIBLEPT_HEADERSDIR=$BUILDDIR/leptonica-$LEPTONICA_V/include
+export LIBLEPT_LIBSDIR=$BUILDDIR/leptonica-$LEPTONICA_V/lib
+./configure --prefix=$BUILDDIR/tesseract-ocr-$TESSERACT_V --with-extra-libraries=$LIBLEPT_LIBSDIR
+make install
+
+mkdir -p $PACKAGEDIR/bin
+mkdir -p $PACKAGEDIR/lib
+
+cp $BUILDDIR/leptonica-$LEPTONICA_V/lib/liblept.so.3 $PACKAGEDIR/lib
+cp $BUILDDIR/tesseract-ocr-$TESSERACT_V/lib/libtesseract.so.3 $PACKAGEDIR/lib
+cp $BUILDDIR/tesseract-ocr-$TESSERACT_V/bin/tesseract $PACKAGEDIR/bin

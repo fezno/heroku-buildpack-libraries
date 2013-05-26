@@ -1,0 +1,76 @@
+#! /bin/bash
+
+OPENCV_VERSION=2.4.5
+
+CURRENT_DIR=${PWD}
+# capital Placeholder will be replaced with the remote url
+PLACEHOLDER=''
+
+while test $# -gt 0; do
+  case "$1" in
+    -l|--local)
+      shift
+      LOCAL=true
+      INSTALL_DIR=`echo $1 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $LOCAL ]]; then
+  mkdir $CURRENT_DIR/builddir
+  BUILDDIR=$CURRENT_DIR/builddir
+  PACKAGEDIR=$INSTALL_DIR
+  CURLDIR=$BUILDDIR
+else
+  BUILDDIR=/tmp/build
+  PACKAGEDIR=/tmp/package
+  CURLDIR=$CURRENT_DIR
+  mkdir -p $BUILDDIR
+fi
+
+mkdir -p $PACKAGEDIR/bin
+mkdir -p $PACKAGEDIR/lib
+
+# CMake
+## BUILD or Download CMAKE
+if [[ $REMOTE ]]; then
+  curl $REMOTE -o - | tar -xz -C $BUILDDIR -f -
+  CMAKEBIN=$BUILDDIR/bin/cmake
+else
+  if [[ $LOCAL ]]; then
+    $CURRENT_DIR/support/buildScripts/cmake --buildtool --local
+    CMAKEBIN=$BUILDDIR/cmake/bin/cmake
+  else
+    $CURRENT_DIR/buildScripts/cmake --buildtool
+    CMAKEBIN=$CURRENT_DIR/cmake/bin/cmake
+  fi
+fi
+
+curl http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/$OPENCV_VERSION/opencv-$OPENCV_VERSION.tar.gz -L -o- | tar -xz -C $CURLDIR -f -
+
+mkdir $BUILDDIR/release && cd $BUILDDIR/release
+
+$CMAKEBIN -D CMAKE_BUILD_TYPE=MINSIZEREL \
+  -D CMAKE_INSTALL_PREFIX=$PACKAGEDIR \
+  -D BUILD_DOCS=OFF \
+  -D BUILD_PERF_TESTS=OFF \
+  -D BUILD_TESTS=OFF \
+  -D BUILD_opencv_calib3d=OFF \
+  -D BUILD_opencv_gpu=OFF \
+  -D EXECUTABLE_OUTPUT_FILE_INCLUDE_DIR=$PACKAGEDIR/bin \
+  -D OPENCV_CONFIG_FILE_INCLUDE_DIR=$PACKAGEDIR \
+  -D WITH_CUDA=OFF \
+  -D WITH_EIGEN=OFF \
+  -D WITH_GTK=OFF \
+  -D WITH_PVAPI=OFF \
+  $CURLDIR/opencv-$OPENCV_VERSION
+
+make
+make install
+
+# copy additional include directory not copied by opencv install
+cp -r $CURLDIR/opencv-$OPENCV_VERSION/modules/contrib/include/opencv2/contrib/ $PACKAGEDIR/include/opencv2/contrib

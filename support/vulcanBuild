@@ -1,0 +1,74 @@
+#! /bin/bash
+
+# set up array of binaries which buildfile exists
+supportedBinaries[0]='tesseract-ocr'
+supportedBinaries[1]='opencv'
+supportedBinaries[2]='cmake'
+supportedBinaries[3]='imagemagick'
+BINARY=''
+
+while test $# -gt 0; do
+  case "$1" in
+    -h|--help)
+      echo "build with -f or --fullpackage if you wish to get all the includes files"
+      exit 0
+      ;;
+    -f|--fullpackage)
+      shift
+      FULLPACKAGE=true
+      shift
+      ;;
+    -b|--bin)
+      shift
+      BINARY=`echo $1 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    --cmake)
+      shift
+      CMAKE=`echo $1 | sed -e 's/^[^=]*=//g'`
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if [[ $BINARY == '' ]]
+then
+  echo 'please specify a binary to build'
+  exit 1
+fi
+
+
+if [[ ${supportedBinaries[*]} =~ $BINARY ]]
+then
+  echo 'building' $BINARY
+else
+  echo 'this binary is not supported yet'
+  exit 1
+
+fi
+
+LOCALBUILDDIR=./
+BUILDDIR=/tmp/build
+PACKAGEDIR=/tmp/package
+BUILDFILE=./buildScripts/$BINARY
+OUTPUTFILE=/tmp/$BINARY.tar.gz
+
+if [[ $CMAKE ]]; then
+  sed -i '' 's~PLACEHOLDER='\'\''~REMOTE='$CMAKE'~g' buildScripts/opencv
+fi
+
+# Launch the build on Vulcan
+if [[ $FULLPACKAGE ]]; then
+  echo "Building Full Package"
+  vulcan build -v -s $LOCALBUILDDIR -p $BUILDDIR -c "$BUILDFILE" -o $OUTPUTFILE
+else
+  echo "Building Buildpack Package"
+  vulcan build -v -s $LOCALBUILDDIR -p $PACKAGEDIR -c "$BUILDFILE" -o $OUTPUTFILE
+fi
+
+if [[ $CMAKE ]]; then
+  sed -i '' 's~REMOTE='$CMAKE'~PLACEHOLDER='\'\''~g' buildScripts/opencv
+fi

@@ -1,0 +1,27 @@
+#!/bin/bash
+BUILD_DIR=$1
+CURRENT_DIR=${PWD}
+
+# Keep some files out of the slug
+FILE=${BUILD_DIR}/.buildpack-ignore
+
+if [ -f $FILE ];
+then
+  $CURRENT_DIR/support/cleanSlug $BUILD_DIR $FILE
+fi
+
+# read the available binaries to be downloaded
+FILE=${BUILD_DIR}/.buildpacks_bin_download
+
+if [ -f $FILE ];
+then
+  $CURRENT_DIR/support/getBinaries $BUILD_DIR $CURRENT_DIR $FILE 'download'
+fi
+
+# read the available binaries to be built
+FILE=${BUILD_DIR}/.buildpacks_bin_build
+
+if [ -f $FILE ];
+then
+  $CURRENT_DIR/support/getBinaries $BUILD_DIR $CURRENT_DIR $FILE 'build'
+fi

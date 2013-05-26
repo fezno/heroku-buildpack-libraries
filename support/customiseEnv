@@ -1,0 +1,76 @@
+#!/bin/bash
+BUILD_DIR=$1
+ENV_DIR=$2
+FILE=$3
+
+while read l1 l2 l3 l4 l5; do
+  echo 'Adding library' $l1
+
+  INSTALL_DIR=$BUILD_DIR/vendor/$l1
+  PATH_DIR=${HOME}/vendor/$l1
+  echo 'Getting Binaries for the library'
+  mkdir -p $INSTALL_DIR
+  curl $l2 -o - | tar -xz -C $INSTALL_DIR -f -
+
+  echo 'Building runtime environment for' $l1
+  mkdir -p $BUILD_DIR/.profile.d
+  ENVSCRIPT=$BUILD_DIR/.profile.d/$l1.sh
+  echo "export PATH=\"$PATH_DIR/bin:\$PATH\"" > $ENVSCRIPT
+  echo "export LD_LIBRARY_PATH=\"$PATH_DIR/lib:\$LD_LIBRARY_PATH\"" >> $ENVSCRIPT
+
+  # specific setups
+  # Tesseract-ocr DATA
+  if [[ $l1 == 'tesseract-ocr' ]]
+  then
+    echo 'customizing tesseract-ocr'
+    TESSERACT_OCR_DATA_VERSION=$l3
+    INSTALL_DIR_TRAINING_DATA=$BUILD_DIR/vendor/
+    echo $TESSERACT_OCR_DATA_VERSION
+    echo $INSTALL_DIR_TRAINING_DATA
+
+    echo 'Getting tesseract-ocr training data'
+    echo 'English training data'
+    curl https://tesseract-ocr.googlecode.com/files/tesseract-ocr-$TESSERACT_OCR_DATA_VERSION.eng.tar.gz \
+      -o - | tar -xz -C $INSTALL_DIR_TRAINING_DATA -f -
+    if [ $l4 ]
+    then
+      TESSERACT_OCR_LANGUAGES=$l4
+      array=(${TESSERACT_OCR_LANGUAGES//,/ })
+      for i in "${!array[@]}"
+      do
+        lang="${array[i]}"
+        echo $lang 'training data'
+        echo https://tesseract-ocr.googlecode.com/files/tesseract-ocr-$TESSERACT_OCR_DATA_VERSION.$lang.tar.gz
+        curl https://tesseract-ocr.googlecode.com/files/tesseract-ocr-$TESSERACT_OCR_DATA_VERSION.$lang.tar.gz \
+          -o - | tar -xz -C $INSTALL_DIR_TRAINING_DATA -f -
+
+      done
+      echo "export TESSDATA_PREFIX=\"$PATH_DIR/\"" >> $ENVSCRIPT
+    fi
+  fi # Tesseract-ocr DATA /end
+
+  # opencv
+  if [[ $l1 == 'opencv' ]]
+  then
+    echo 'customizing opencv'
+    pcfile=$INSTALL_DIR/lib/pkgconfig/opencv.pc
+
+    sed -ie 's~/tmp/package~'$PATH_DIR'~g' $pcfile
+    echo "export PKG_CONFIG_PATH=\"$PATH_DIR/lib/pkgconfig/\"" >> $ENVSCRIPT
+    echo "export C_INCLUDE_PATH=\"$PATH_DIR/include/:$PATH_DIR/include/opencv/:$PATH_DIR/include/opencv2/\"" >> $ENVSCRIPT
+    echo "export CPLUS_INCLUDE_PATH=\"$PATH_DIR/include/:$PATH_DIR/include/opencv:$PATH_DIR/include/opencv2/\"" >> $ENVSCRIPT
+
+    # export same variables which are necessary for usage with nodejs and heroku
+    pcfiletmp=$ENV_DIR/bin/opencv.pc
+
+    cp $pcfile $pcfiletmp
+    sed -ie 's~'$PATH_DIR'~'$INSTALL_DIR'~g' $pcfiletmp
+
+    echo 'export PKG_CONFIG_PATH='$ENV_DIR'/bin' >> $ENV_DIR/bin/compile.env
+    echo 'export C_INCLUDE_PATH='$INSTALL_DIR'/include/:'$INSTALL_DIR'/include/opencv/:'$INSTALL_DIR'/include/opencv2/' >> $ENV_DIR/bin/compile.env
+
+    echo 'export CPLUS_INCLUDE_PATH='$INSTALL_DIR'/include/:'$INSTALL_DIR'/include/opencv/':$INSTALL_DIR'/include/opencv2/' >> $ENV_DIR/bin/compile.env
+
+  fi # opencv /end
+
+done < $FILE
