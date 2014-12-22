@@ -11,7 +11,7 @@ heroku config:set BUILDPACK_URL=https://github.com/ddollar/heroku-buildpack-mult
 Then, create a `.buildpacks` file inside your app:
 ```
 https://github.com/heroku/_YOUR_MAIN_BUILDPACK
-https://github.com/marcolinux/heroku-buildpack-libraries
+https://github.com/fezno/heroku-buildpack-libraries
 ```
 See the documentation of heroku-build-multi for a detailed explanation how to use it.
 
@@ -61,6 +61,10 @@ It is necessary to specify an additional version number (necessary for getting t
 An optional comma-separated string can be added for download additional languages than English
 ```
 tesseract-ocr https://s3.amazonaws.com/tesseract-ocr/heroku/tesseract-ocr-3.02.02.tar.gz 3.02 eng,jpn
+```
+A temporary fix until I correct the build script:
+```
+tesseract-ocr 3.02 foo eng,jpn
 ```
 
 #### OpenCV
